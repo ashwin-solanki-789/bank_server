@@ -3,21 +3,25 @@ export const userTypeDefs = /* GraphQL */ `
     id: ID!
     firstname: String!
     tax_id: String!
-    password: String!
-    join_date: String!
+    password: String
+    createdAt: String!
   }
 
   type PublicUser {
     id: ID!
     firstname: String!
     tax_id: String!
-    join_date: String!
+    createdAt: String!
     token: String!
   }
 
-  input UserInput {
-    tax_id: String!
-    password: String!
+  type Query {
+    getUser: User!
+  }
+
+  type Mutation {
+    login(userInput: UserInput): PublicUser!
+    register(registerInput: RegisterInput): PublicUser!
   }
 
   input RegisterInput {
@@ -26,12 +30,8 @@ export const userTypeDefs = /* GraphQL */ `
     tax_id: String!
   }
 
-  type Query {
-    getUser(id: ID): User
-  }
-
-  type Mutation {
-    login(userInput: UserInput): PublicUser
-    register(userInput: RegisterInput): PublicUser
+  input UserInput {
+    tax_id: String!
+    password: String!
   }
 `;

@@ -1,22 +1,126 @@
+import { Request } from "express";
+import { RegisterInput, LoginInput } from "../interfaces";
+import prisma from "../PrismaClient";
+import { generateToken, decodeToken } from "../utils/token";
+import bcrypt from "bcrypt";
+import { loginInputSchema, registerInputSchema } from "../validation";
+
 export const userResolver = {
   Query: {
-    getUser: (_: any, args: any) => {
-      let user = {
-        id: args.id,
-        firstname: "Some Name",
-        tax_id: "111111",
-        password: "aaaaa",
-        join_date: "aaaaaa",
+    getUser: async (_: any, __: any, ctx: Request) => {
+      const authorization = ctx.headers.authorization;
+      // const
+      if (!authorization) {
+        throw new Error("Unauthorized User!");
+      }
+      const token = authorization.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      const isValidUser = await prisma.user.findFirst({
+        where: {
+          tax_id: user?.tax_id,
+          id: user?.id,
+        },
+      });
+
+      if (!user || !isValidUser) {
+        throw new Error("Unauthorized User!");
+      }
+
+      return {
+        id: user.id,
+        firstname: user.name,
+        tax_id: user.tax_id,
+        createdAt: isValidUser.createdAt,
       };
-      return user;
     },
   },
   Mutation: {
-    login: (_: any, args: any) => {
-      return;
+    login: async (
+      _: any,
+      { userInput }: { userInput: LoginInput },
+      ctx: any
+    ) => {
+      console.log(ctx);
+      await loginInputSchema.validate(userInput);
+      const user = await prisma.user.findFirst({
+        where: {
+          tax_id: userInput.tax_id,
+        },
+      });
+
+      if (!user) {
+        throw new Error("Invalid tax id or password!");
+      }
+
+      const isValidPassword = await bcrypt.compare(
+        userInput.password,
+        user.password
+      );
+
+      if (!isValidPassword) {
+        throw new Error("Invalid tax id or password!");
+      }
+
+      const token = generateToken(user.firstName, user.id, user.tax_id);
+      ctx.session.user = {
+        tax_id: user.tax_id,
+        id: user.id,
+      };
+      return {
+        id: user.id,
+        firstname: user.firstName,
+        tax_id: user.tax_id,
+        createdAt: user.createdAt,
+        token,
+      };
     },
-    register: (_: any, args: any) => {
-      return;
+    register: async (
+      _: any,
+      { registerInput }: { registerInput: RegisterInput },
+      ctx: Request
+    ) => {
+      // check user input
+      await registerInputSchema.validate(registerInput);
+      const tax_exists = await prisma.user.findFirst({
+        where: {
+          tax_id: registerInput.tax_id,
+        },
+      });
+
+      if (tax_exists) {
+        throw new Error("User with tax id already exists");
+      }
+
+      const saltRound = parseInt(process.env.HASH_SALT as string);
+      const hashedPassword = await bcrypt.hash(
+        registerInput.password,
+        saltRound
+      );
+
+      const user = await prisma.user.create({
+        select: {
+          firstName: true,
+          tax_id: true,
+          id: true,
+          createdAt: true,
+        },
+        data: {
+          firstName: registerInput.firstname,
+          password: hashedPassword,
+          tax_id: registerInput.tax_id,
+        },
+      });
+      const token = generateToken(user.firstName, user.id, user.tax_id);
+      ctx.session.user = {
+        tax_id: user.tax_id,
+        id: user.id,
+      };
+      return {
+        ...user,
+        token,
+      };
     },
   },
 };
