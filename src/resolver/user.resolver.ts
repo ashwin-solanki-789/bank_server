@@ -4,6 +4,7 @@ import prisma from "../PrismaClient";
 import { generateToken, decodeToken } from "../utils/token";
 import bcrypt from "bcrypt";
 import { loginInputSchema, registerInputSchema } from "../validation";
+import { SessionData } from "express-session";
 
 export const userResolver = {
   Query: {
@@ -40,10 +41,10 @@ export const userResolver = {
     login: async (
       _: any,
       { userInput }: { userInput: LoginInput },
-      ctx: any
+      { req }: { req: Request }
     ) => {
-      console.log(ctx);
       await loginInputSchema.validate(userInput);
+
       const user = await prisma.user.findFirst({
         where: {
           tax_id: userInput.tax_id,
@@ -64,10 +65,13 @@ export const userResolver = {
       }
 
       const token = generateToken(user.firstName, user.id, user.tax_id);
-      ctx.session.user = {
-        tax_id: user.tax_id,
-        id: user.id,
-      };
+      if (!req.session.user) {
+        req.session.user = {
+          firstName: user.firstName,
+          tax_id: user.tax_id,
+          id: user.id,
+        };
+      }
       return {
         id: user.id,
         firstname: user.firstName,
@@ -79,7 +83,7 @@ export const userResolver = {
     register: async (
       _: any,
       { registerInput }: { registerInput: RegisterInput },
-      ctx: Request
+      { req }: { req: Request }
     ) => {
       // check user input
       await registerInputSchema.validate(registerInput);
@@ -113,10 +117,13 @@ export const userResolver = {
         },
       });
       const token = generateToken(user.firstName, user.id, user.tax_id);
-      ctx.session.user = {
-        tax_id: user.tax_id,
-        id: user.id,
-      };
+      if (!req.session.user) {
+        req.session.user = {
+          firstName: user.firstName,
+          tax_id: user.tax_id,
+          id: user.id,
+        };
+      }
       return {
         ...user,
         token,

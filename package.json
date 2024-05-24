@@ -36,11 +36,11 @@
     "express-session": "^1.18.0",
     "graphql": "^16.8.1",
     "graphql-http": "^1.22.1",
+    "graphql-playground-middleware-express": "^1.7.23",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.6.2",
     "prisma": "^5.14.0",
-    "ruru": "^2.0.0-beta.13",
     "yup": "^1.4.0"
   }
 }

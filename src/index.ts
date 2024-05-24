@@ -1,78 +1,86 @@
 import express, { NextFunction, Request, Response } from "express";
 import dotenv from "dotenv";
-import { RequestContext, createHandler } from "graphql-http/lib/use/express";
-import { schema } from "./schema";
-import { resolvers } from "./resolver";
+import {
+  createHandler,
+  parseRequestParams,
+} from "graphql-http/lib/use/express";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import cors from "cors";
-import session from "express-session";
+import session, { SessionOptions } from "express-session";
 import helmet from "helmet";
-
-const { ruruHTML } = require("ruru/server");
+import { schema } from "./schema";
+import { resolvers } from "./resolver";
+import expressPlayground from "graphql-playground-middleware-express";
 
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 4000;
 
-const PORT = process.env.PORT;
+declare module "express-session" {
+  interface SessionData {
+    user: UserObj | null;
+  }
+}
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
 app.use(express.json());
+
+const sessionOption: SessionOptions = {
+  secret: process.env.COOKIE_SECRET as string,
+  name: "sid",
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: false,
+    // httpOnly: true,
+    // sameSite: process.env.ENVIRONMENT === "production" ? "none" : "lax",
+  },
+};
+app.use(session(sessionOption));
+
 app.use(
   cors({
     origin: "http://localhost:3000",
     credentials: true,
   })
 );
-app.use(
-  session({
-    secret: process.env.COOKIE_SECRET as string,
-    name: "sid",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.ENVIRONMENT === "production",
-      httpOnly: true,
-      sameSite: process.env.ENVIRONMENT === "production" ? "none" : "lax",
-    },
-  })
-);
-// function sessionHandler(req: Request, res: Response, next: NextFunction) {
-//   if (!req.session.user) {
-//     let user = {};
-//     req.session.user = user;
-//   }
-//   next();
-// }
-// app.use("/", sessionHandler);
 
 const executableSchema = makeExecutableSchema({
   typeDefs: schema,
   resolvers,
 });
 
-app.get("/", function (req: Request, res: Response) {
-  // res.writeHead(200, { "Content-Type": "text/html" });
-  req.session.user = { id: "Aa" };
-  return res.end(ruruHTML({ endpoint: "/graphql" }));
-});
+app.get("/playground", expressPlayground({ endpoint: "/graphql" }));
+
+function initialiseSession(req: Request, _res: Response, next: NextFunction) {
+  if (!req.session.user) {
+    req.session.user = null;
+  }
+  console.log(req.session.user);
+  next();
+}
 
 app.all(
   "/graphql",
-  createHandler({
-    schema: executableSchema,
-    context: function (req: any) {
-      // req.session.user = {};
-      return req;
-    },
-  })
+  initialiseSession,
+  async function (req: Request, res: Response, next: NextFunction) {
+    const handler = createHandler({
+      schema: executableSchema,
+      context: { req: req },
+    });
+    handler(req, res, next);
+  }
 );
 
 app
   .listen(PORT, () => {
-    console.log("Server running at PORT: ", PORT);
+    console.log("Server running at PORT:", PORT);
   })
   .on("error", (error) => {
-    // gracefully handle error
     throw new Error(error.message);
   });
