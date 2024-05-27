@@ -5,7 +5,6 @@ import { generateToken, decodeToken } from "../utils/token";
 import bcrypt from "bcrypt";
 import { loginInputSchema, registerInputSchema } from "../validation";
 import generate_account_number from "../utils/generate_account_number";
-import { lstat } from "fs";
 
 export const userResolver = {
   Query: {
