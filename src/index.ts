@@ -1,9 +1,6 @@
 import express, { NextFunction, Request, Response } from "express";
 import dotenv from "dotenv";
-import {
-  createHandler,
-  parseRequestParams,
-} from "graphql-http/lib/use/express";
+import { createHandler } from "graphql-http/lib/use/express";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import cors from "cors";
 import session, { SessionOptions } from "express-session";
@@ -11,6 +8,7 @@ import helmet from "helmet";
 import { schema } from "./schema";
 import { resolvers } from "./resolver";
 import expressPlayground from "graphql-playground-middleware-express";
+import { decodeToken } from "./utils/token";
 
 dotenv.config();
 
@@ -37,15 +35,16 @@ const sessionOption: SessionOptions = {
   saveUninitialized: true,
   cookie: {
     secure: false,
-    // httpOnly: true,
-    // sameSite: process.env.ENVIRONMENT === "production" ? "none" : "lax",
+    httpOnly: true,
+    maxAge: 60 * 60 * 1000,
+    sameSite: process.env.ENVIRONMENT === "production" ? "none" : "lax",
   },
 };
 app.use(session(sessionOption));
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -55,13 +54,20 @@ const executableSchema = makeExecutableSchema({
   resolvers,
 });
 
+app.get("/", function (_: Request, res: Response) {
+  res.send(`
+    <h1>Welcome to the GraphQL Server</h1>
+    <p>Playground: <a href="/playground">/playground</a></p>
+    <p>GraphQL Endpoint: <a href="/graphql">/graphql</a></p>
+  `);
+});
+
 app.get("/playground", expressPlayground({ endpoint: "/graphql" }));
 
 function initialiseSession(req: Request, _res: Response, next: NextFunction) {
   if (!req.session.user) {
     req.session.user = null;
   }
-  console.log(req.session.user);
   next();
 }
 

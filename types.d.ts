@@ -1,6 +1,6 @@
 type UserObj = {
   id: string;
-  firstName: string;
+  email: string;
   tax_id: string;
   [key: string]: any;
 };

@@ -5,16 +5,11 @@ interface jwtDateObj extends UserObj {
   exp: number;
 }
 
-export function generateToken(
-  name: string,
-  id: string,
-  tax_id: string
-): string {
+export function generateToken(email: string, id: string): string {
   const token = jwt.sign(
     {
       id,
-      name,
-      tax_id,
+      email,
     },
     process.env.JWT_SECRET_TOKEN as string,
     { expiresIn: "1h" }
@@ -23,10 +18,7 @@ export function generateToken(
   return token;
 }
 
-export function decodeToken(token: string): UserObj | null {
-  if (!token) {
-    return null;
-  }
+export function decodeToken(token: string): UserObj {
   const user = jwt.verify(
     token,
     process.env.JWT_SECRET_TOKEN as string
@@ -35,5 +27,5 @@ export function decodeToken(token: string): UserObj | null {
   if (Date.now() >= user.iat * 1000 && Date.now() <= user.exp * 1000) {
     return user;
   }
-  return null;
+  throw new Error("Unauthorise User!");
 }

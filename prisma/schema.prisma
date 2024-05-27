@@ -15,7 +15,9 @@ datasource db {
 
 model User {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  firstName String
+  firstname String
+  lastname  String
+  email     String    @unique
   tax_id    String    @unique
   password  String
   createdAt DateTime  @default(now())
@@ -27,5 +29,5 @@ model Account {
   account_number Int
   balance        Float
   userId         String? @db.ObjectId
-  User           User?   @relation(fields: [userId], references: [id])
+  User           User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

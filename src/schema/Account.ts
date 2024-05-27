@@ -2,22 +2,19 @@ export const AccountTypeDefs = /* GraphQL */ `
   type Account {
     id: ID!
     account_number: Int!
-    user: User!
+    userId: ID!
+    user: User
     balance: Float!
+    createdAt: String
   }
 
   type Query {
-    getAccountDetails(account_number: Int!): Account
-    getAccountBasedOnUserID(user_id: ID!): Account
+    getAccountDetails(account_number: Int!): Account!
+    getAllAccountBasedOnUserID(user_id: ID!): [Account!]
   }
 
   type Mutation {
-    generateAccount(account: AccountInput): Account
-  }
-
-  input AccountInput {
-    account_number: Int!
-    user_id: ID!
-    balance: Float!
+    createAnotherAccount: Account!
+    deleteAccount(account_number: Int!): Boolean!
   }
 `;

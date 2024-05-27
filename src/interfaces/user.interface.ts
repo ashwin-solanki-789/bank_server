@@ -1,10 +1,12 @@
 export interface RegisterInput {
   firstname: string;
+  lastname: string;
+  email: string;
   password: string;
   tax_id: string;
 }
 
 export interface LoginInput {
-  tax_id: string;
+  email: string;
   password: string;
 }
