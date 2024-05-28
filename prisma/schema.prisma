@@ -25,21 +25,25 @@ model User {
 }
 
 model Account {
-  id             String  @id @default(auto()) @map("_id") @db.ObjectId
-  account_number Int
-  balance        Float
-  userId         String? @db.ObjectId
-  User           User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String        @id @default(auto()) @map("_id") @db.ObjectId
+  account_number      Int           @unique()
+  balance             Float
+  userId              String?       @db.ObjectId
+  User                User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentTransaction     Transaction[] @relation("SenderAccount")
+  receivedTransaction Transaction[] @relation("ReceiverAccount")
 }
 
 model Transaction {
   id          String            @id @default(auto()) @map("_id") @db.ObjectId
-  sender      Int
-  receiver    Int
+  senderId    Int
+  receiverId  Int
   amount      Float
   description String
   status      TransactionStatus @default(PENDING)
   type        TransactionType   @default(REQUEST)
+  sender      Account           @relation("SenderAccount", fields: [senderId], references: [account_number])
+  receiver    Account           @relation("ReceiverAccount", fields: [receiverId], references: [account_number])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @default(now())
 }

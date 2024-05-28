@@ -13,15 +13,15 @@ export const userTypeDefs = /* GraphQL */ `
   type PublicUser {
     id: ID!
     firstname: String!
-    lastname: String!
+    lastname: String
     email: String!
     tax_id: String!
     createdAt: String!
-    token: String!
+    token: String
   }
 
   type Query {
-    getUser: User!
+    getUser: PublicUser!
   }
 
   type Mutation {

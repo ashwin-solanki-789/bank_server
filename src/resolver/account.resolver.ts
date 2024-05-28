@@ -27,13 +27,16 @@ export const accountResolver = {
         where: {
           account_number: account_number,
         },
+        include: {
+          User: true,
+        },
       });
 
       if (!account) {
         throw new Error("Account not found!");
       }
-
-      return account;
+      let tempUser = account.User;
+      return { ...account, user: tempUser };
     },
   },
   Mutation: {
@@ -69,20 +72,5 @@ export const accountResolver = {
       { account_number }: { account_number: Number },
       { req }: { req: Request }
     ) => {},
-  },
-  Account: {
-    user: (parent: any) => {
-      return prisma.user.findFirst({
-        where: {
-          id: parent.userId,
-        },
-        select: {
-          id: true,
-          firstname: true,
-          tax_id: true,
-          createdAt: true,
-        },
-      });
-    },
   },
 };

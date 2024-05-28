@@ -14,3 +14,8 @@ export interface TransactionInput {
     description: string;
   };
 }
+
+export interface UpdateTransaction {
+  transaction_id: string;
+  status: TransactionStatus;
+}

@@ -45,7 +45,7 @@ export const userResolver = {
 
       const user = await prisma.user.findFirst({
         where: {
-          tax_id: userInput.email,
+          email: userInput.email,
         },
       });
 
@@ -171,13 +171,13 @@ export const userResolver = {
       return true;
     },
   },
-  User: {
-    accounts: (parent: any) => {
-      return prisma.account.findMany({
-        where: {
-          userId: parent.id,
-        },
-      });
-    },
-  },
+  // User: {
+  //   accounts: (parent: any) => {
+  //     return prisma.account.findMany({
+  //       where: {
+  //         userId: parent.id,
+  //       },
+  //     });
+  //   },
+  // },
 };

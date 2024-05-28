@@ -13,8 +13,10 @@ export const TransactionTypeDefs = /* GraphQL */ `
 
   type Transaction {
     id: ID!
-    sender: Int!
-    receiver: Int!
+    senderId: Int!
+    receiverId: Int!
+    sender: PublicAccount!
+    receiver: PublicAccount!
     amount: Float!
     description: String
     status: TransactionStatus!
@@ -31,8 +33,11 @@ export const TransactionTypeDefs = /* GraphQL */ `
   }
 
   type Mutation {
-    createTransaction(transaction_details: sendMoneytInput!): Transaction!
-    updateTransaction(id: ID!, status: TransactionStatus!): Transaction!
+    createTransaction(transaction_details: sendMoneyInput!): Transaction!
+    updateTransaction(
+      transaction_id: ID!
+      status: TransactionStatus!
+    ): Transaction!
     deleteTransaction(id: ID!): Transaction!
   }
 

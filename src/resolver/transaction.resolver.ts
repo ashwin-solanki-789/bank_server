@@ -4,6 +4,7 @@ import { RequestContext } from "../interfaces";
 import {
   GetTransactionInput,
   TransactionInput,
+  UpdateTransaction,
 } from "../interfaces/transaction.interface";
 import { decodeToken } from "../utils/token";
 
@@ -23,20 +24,30 @@ export const transactionResolver = {
 
       const user = decodeToken(token);
 
+      const account_exist = await prisma.account.findFirst({
+        where: {
+          account_number: account_id,
+          userId: user.id,
+        },
+      });
+
+      if (!account_exist) {
+        throw new Error("Invalid Request!");
+      }
+
       const transactions = await prisma.transaction.findMany({
         where: {
           OR: [
             {
-              sender: account_id,
+              senderId: account_id,
             },
             {
-              receiver: account_id,
+              receiverId: account_id,
             },
           ],
           status: status,
         },
       });
-
       return transactions;
     },
   },
@@ -55,34 +66,184 @@ export const transactionResolver = {
 
       const user = decodeToken(token);
 
-      let find_account: number;
+      let transaction;
       if (transaction_details.type === TransactionType.NORMAL) {
-        find_account = transaction_details.sender;
-      } else {
-        find_account = transaction_details.receiver;
-      }
+        const account_details = await prisma.account.findFirst({
+          where: {
+            account_number: transaction_details.sender,
+            userId: user.id,
+          },
+        });
 
-      const account_details = await prisma.account.findFirst({
+        if (!account_details) {
+          throw new Error("Invalid Details");
+        }
+
+        if (account_details.balance - transaction_details.amount < 0) {
+          throw new Error("Insufficient funds!");
+        }
+
+        prisma.$transaction(async (prisma) => {
+          prisma.account.update({
+            where: {
+              account_number: transaction_details.sender,
+            },
+            data: {
+              balance: account_details.balance - transaction_details.amount,
+            },
+          });
+
+          transaction = await prisma.transaction.create({
+            data: {
+              sender: {
+                connect: {
+                  account_number: transaction_details.sender,
+                },
+              },
+              receiver: {
+                connect: {
+                  account_number: transaction_details.receiver,
+                },
+              },
+              status: TransactionStatus.COMPLETED,
+              amount: transaction_details.amount,
+              description: transaction_details.description,
+              type: transaction_details.type,
+            },
+          });
+        });
+      } else {
+        const account_details = await prisma.account.findFirst({
+          where: {
+            account_number: transaction_details.receiver,
+            userId: user.id,
+          },
+        });
+
+        if (!account_details) {
+          throw new Error("Invalid details!");
+        }
+
+        transaction = await prisma.transaction.create({
+          data: {
+            sender: {
+              connect: {
+                account_number: transaction_details.sender,
+              },
+            },
+            receiver: {
+              connect: {
+                account_number: transaction_details.receiver,
+              },
+            },
+            status: TransactionStatus.PENDING,
+            amount: transaction_details.amount,
+            description: transaction_details.description,
+            type: transaction_details.type,
+          },
+          include: {
+            sender: {
+              include: {
+                User: true,
+              },
+            },
+            receiver: {
+              include: {
+                User: true,
+              },
+            },
+          },
+        });
+      }
+      return transaction;
+    },
+    updateTransaction: async (
+      _: any,
+      { transaction_id, status }: UpdateTransaction,
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      if (!authorization) {
+        throw new Error("Unauthorized User!");
+      }
+      const token = authorization.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      const account = await prisma.account.findFirst({
         where: {
-          account_number: find_account,
+          userId: user.id,
         },
       });
 
-      if (!account_details) {
-        throw new Error("Invalid Details");
+      const transaction = await prisma.transaction.findFirst({
+        where: {
+          id: transaction_id,
+          type: TransactionType.REQUEST,
+        },
+      });
+      let updatedTransaction;
+      if (status === TransactionStatus.COMPLETED) {
+        if (!transaction || !account) {
+          throw new Error("Unable to find transaction or user account.");
+        }
+
+        if (account.balance - transaction.amount < 0) {
+          throw new Error("Insufficient funds!");
+        }
+
+        prisma.$transaction(async (prisma) => {
+          await prisma.account.update({
+            where: {
+              account_number: account.account_number,
+            },
+            data: {
+              balance: account.balance - transaction.amount,
+            },
+          });
+
+          updatedTransaction = await prisma.transaction.update({
+            where: {
+              id: transaction_id,
+            },
+            data: {
+              status: status,
+            },
+          });
+        });
+      } else {
+        updatedTransaction = prisma.transaction.update({
+          where: {
+            id: transaction_id,
+          },
+          data: {
+            status: status,
+          },
+        });
       }
 
-      if (account_details.balance - transaction_details.amount < 0) {
-        throw new Error("Insufficient funds!");
-      }
-
-      const transaction = await prisma.transaction.create({
-        data: {
-          sender: transaction_details.sender,
-          receiver: transaction_details.receiver,
-          amount: transaction_details.amount,
-          description: transaction_details.description,
-          type: transaction_details.type,
+      return updatedTransaction;
+    },
+  },
+  Transaction: {
+    sender: async (parent: any) => {
+      return prisma.account.findFirst({
+        where: {
+          account_number: parent.senderId,
+        },
+        include: {
+          User: true,
+        },
+      });
+    },
+    receiver: async (parent: any) => {
+      return prisma.account.findFirst({
+        where: {
+          account_number: parent.receiverId,
+        },
+        include: {
+          User: true,
         },
       });
     },
