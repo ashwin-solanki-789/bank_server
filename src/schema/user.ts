@@ -42,4 +42,8 @@ export const userTypeDefs = /* GraphQL */ `
     email: String!
     password: String!
   }
+
+  type Subscription {
+    userLoggedIn: String!
+  }
 `;

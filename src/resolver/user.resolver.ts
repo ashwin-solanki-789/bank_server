@@ -1,15 +1,16 @@
 import { Request } from "express";
-import { RegisterInput, LoginInput } from "../interfaces";
+import { RegisterInput, LoginInput, RequestContext } from "../interfaces";
 import prisma from "../PrismaClient";
 import { generateToken, decodeToken } from "../utils/token";
 import bcrypt from "bcrypt";
 import { loginInputSchema, registerInputSchema } from "../validation";
 import generate_account_number from "../utils/generate_account_number";
 import { AccountStatus, UserStatus } from "@prisma/client";
+import { PubSub } from "graphql-subscriptions";
 
 export const userResolver = {
   Query: {
-    getUser: async (_: any, __: any, { req }: { req: Request }) => {
+    getUser: async (_: any, __: any, { req }: RequestContext) => {
       const authorization = req.headers.authorization;
       // const
       if (!authorization) {
@@ -38,7 +39,7 @@ export const userResolver = {
     login: async (
       _: any,
       { userInput }: { userInput: LoginInput },
-      { req }: { req: Request }
+      { req, pubsub }: RequestContext
     ) => {
       await loginInputSchema.validate(userInput);
 
@@ -71,6 +72,8 @@ export const userResolver = {
           id: user.id,
         };
       }
+      console.log(pubsub);
+      pubsub.publish("USER_LOGGED", { userLoggedIn: "LOGGED IN USER" });
       return {
         id: user.id,
         firstname: user.firstname,
@@ -177,6 +180,17 @@ export const userResolver = {
         });
       });
       return true;
+    },
+  },
+  Subscription: {
+    userLoggedIn: {
+      resolve: (payload: any) => {
+        console.log({ payload });
+        return payload;
+      },
+      subscribe: (_: any, __: any, { pubsub }: { pubsub: PubSub }) => {
+        return pubsub.asyncIterator(["USER_LOGGED"]);
+      },
     },
   },
   User: {

@@ -1,3 +1,5 @@
+import { WebSocketServer } from "ws";
+import { useServer } from "graphql-ws/lib/use/ws";
 import express, { NextFunction, Request, Response } from "express";
 import dotenv from "dotenv";
 import { createHandler } from "graphql-http/lib/use/express";
@@ -9,12 +11,12 @@ import { schema } from "./schema";
 import { resolvers } from "./resolver";
 import expressPlayground from "graphql-playground-middleware-express";
 import { decodeToken } from "./utils/token";
+import { PubSub } from "graphql-subscriptions";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-
 declare module "express-session" {
   interface SessionData {
     user: UserObj | null;
@@ -71,21 +73,27 @@ function initialiseSession(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
-app.all(
+app.use(
   "/graphql",
   initialiseSession,
   async function (req: Request, res: Response, next: NextFunction) {
+    const pubsub = new PubSub();
     const handler = createHandler({
       schema: executableSchema,
-      context: { req: req },
+      context: { req, pubsub },
     });
     handler(req, res, next);
   }
 );
 
-app
+const server = app
   .listen(PORT, () => {
-    console.log("Server running at PORT:", PORT);
+    const wsServer = new WebSocketServer({
+      server,
+      // path: "/graphql",
+    });
+    console.log("Server running at PORT:", wsServer);
+    useServer({ schema: executableSchema }, wsServer);
   })
   .on("error", (error) => {
     throw new Error(error.message);
