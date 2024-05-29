@@ -48,6 +48,7 @@ export const transactionResolver = {
           status: status,
         },
       });
+
       return transactions;
     },
   },
@@ -68,14 +69,27 @@ export const transactionResolver = {
 
       let transaction;
       if (transaction_details.type === TransactionType.NORMAL) {
+        // Normal Sending money logic
         const account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.sender,
             userId: user.id,
           },
+          include: {
+            User: true,
+          },
         });
 
-        if (!account_details) {
+        const receiver_account_details = await prisma.account.findFirst({
+          where: {
+            account_number: transaction_details.receiver,
+          },
+          include: {
+            User: true,
+          },
+        });
+
+        if (!account_details || !receiver_account_details) {
           throw new Error("Invalid Details");
         }
 
@@ -113,14 +127,27 @@ export const transactionResolver = {
           });
         });
       } else {
+        // Requesting money from another account logic
         const account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.receiver,
             userId: user.id,
           },
+          include: {
+            User: true,
+          },
         });
 
-        if (!account_details) {
+        const sender_account_details = await prisma.account.findFirst({
+          where: {
+            account_number: transaction_details.sender,
+          },
+          include: {
+            User: true,
+          },
+        });
+
+        if (!account_details || !sender_account_details) {
           throw new Error("Invalid details!");
         }
 
@@ -140,18 +167,6 @@ export const transactionResolver = {
             amount: transaction_details.amount,
             description: transaction_details.description,
             type: transaction_details.type,
-          },
-          include: {
-            sender: {
-              include: {
-                User: true,
-              },
-            },
-            receiver: {
-              include: {
-                User: true,
-              },
-            },
           },
         });
       }

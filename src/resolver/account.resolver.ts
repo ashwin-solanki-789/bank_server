@@ -3,6 +3,7 @@ import { decodeToken } from "../utils/token";
 import prisma from "../PrismaClient";
 import generate_account_number from "../utils/generate_account_number";
 import { RequestContext } from "../interfaces";
+import { AccountStatus } from "@prisma/client";
 
 export const accountResolver = {
   Query: {
@@ -26,17 +27,16 @@ export const accountResolver = {
       const account = await prisma.account.findFirst({
         where: {
           account_number: account_number,
-        },
-        include: {
-          User: true,
+          userId: user.id,
+          status: AccountStatus.ACTIVE,
         },
       });
 
       if (!account) {
         throw new Error("Account not found!");
       }
-      let tempUser = account.User;
-      return { ...account, user: tempUser };
+      console.log(account);
+      return account;
     },
   },
   Mutation: {

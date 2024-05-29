@@ -3,14 +3,14 @@ export const AccountTypeDefs = /* GraphQL */ `
     id: ID!
     account_number: Int!
     userId: ID!
-    user: PublicUser!
     balance: Float!
-    createdAt: String
+    createdAt: String!
   }
 
   type PublicAccount {
     id: ID!
     account_number: Int!
+    userId: ID!
     User: PublicUser!
     createdAt: String!
   }

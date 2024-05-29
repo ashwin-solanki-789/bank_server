@@ -21,7 +21,7 @@ export const userTypeDefs = /* GraphQL */ `
   }
 
   type Query {
-    getUser: PublicUser!
+    getUser: User!
   }
 
   type Mutation {

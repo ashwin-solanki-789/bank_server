@@ -5,6 +5,7 @@ import { generateToken, decodeToken } from "../utils/token";
 import bcrypt from "bcrypt";
 import { loginInputSchema, registerInputSchema } from "../validation";
 import generate_account_number from "../utils/generate_account_number";
+import { AccountStatus, UserStatus } from "@prisma/client";
 
 export const userResolver = {
   Query: {
@@ -20,11 +21,9 @@ export const userResolver = {
 
       const isValidUser = await prisma.user.findFirst({
         where: {
-          tax_id: user?.tax_id,
+          email: user?.email,
           id: user?.id,
-        },
-        include: {
-          accounts: true,
+          status: UserStatus.ACTIVE,
         },
       });
 
@@ -46,6 +45,7 @@ export const userResolver = {
       const user = await prisma.user.findFirst({
         where: {
           email: userInput.email,
+          status: UserStatus.ACTIVE,
         },
       });
 
@@ -119,6 +119,7 @@ export const userResolver = {
           email: registerInput.email,
           password: hashedPassword,
           tax_id: registerInput.tax_id,
+          status: UserStatus.ACTIVE,
         },
       });
 
@@ -129,6 +130,7 @@ export const userResolver = {
           account_number: acc_number,
           balance: 10000,
           userId: user.id,
+          status: AccountStatus.ACTIVE,
         },
       });
 
@@ -156,28 +158,35 @@ export const userResolver = {
       const user = decodeToken(token);
 
       await prisma.$transaction(async (prisma) => {
-        await prisma.account.deleteMany({
+        await prisma.account.updateMany({
           where: {
             userId: user.id,
           },
+          data: {
+            status: AccountStatus.DELETED,
+          },
         });
         // Delete the user
-        await prisma.user.delete({
+        await prisma.user.update({
           where: {
             id: user.id,
+          },
+          data: {
+            status: UserStatus.DELETED,
           },
         });
       });
       return true;
     },
   },
-  // User: {
-  //   accounts: (parent: any) => {
-  //     return prisma.account.findMany({
-  //       where: {
-  //         userId: parent.id,
-  //       },
-  //     });
-  //   },
-  // },
+  User: {
+    accounts: (parent: any) => {
+      return prisma.account.findMany({
+        where: {
+          userId: parent.id,
+          status: AccountStatus.ACTIVE,
+        },
+      });
+    },
+  },
 };
