@@ -44,6 +44,6 @@ export const userTypeDefs = /* GraphQL */ `
   }
 
   type Subscription {
-    userLoggedIn: String!
+    greetings: String
   }
 `;

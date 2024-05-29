@@ -10,10 +10,10 @@ export const accountResolver = {
     getAccountDetails: async (
       _: any,
       { account_number }: { account_number: number },
-      { req }: RequestContext
+      { req, session }: RequestContext
     ) => {
       var user: UserObj;
-      if (!req.session.user) {
+      if (session.user) {
         const bearer = req.headers.authorization;
         if (!bearer) {
           throw new Error("Unauthorized User!");
@@ -21,7 +21,7 @@ export const accountResolver = {
         const token = bearer.split(" ")[1] as string;
         user = decodeToken(token);
       } else {
-        user = req.session.user;
+        user = session.user;
       }
 
       const account = await prisma.account.findFirst({
@@ -40,9 +40,13 @@ export const accountResolver = {
     },
   },
   Mutation: {
-    createAnotherAccount: async (_: any, __: any, { req }: RequestContext) => {
+    createAnotherAccount: async (
+      _: any,
+      __: any,
+      { req, session }: RequestContext
+    ) => {
       var user: UserObj;
-      if (!req.session.user) {
+      if (session.user) {
         const bearer = req.headers.authorization;
         if (!bearer) {
           throw new Error("Unauthorized User!");
@@ -50,7 +54,7 @@ export const accountResolver = {
         const token = bearer.split(" ")[1] as string;
         user = decodeToken(token);
       } else {
-        user = req.session.user;
+        user = session.user;
       }
 
       const acc_number = generate_account_number();

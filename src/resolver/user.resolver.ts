@@ -10,7 +10,8 @@ import { PubSub } from "graphql-subscriptions";
 
 export const userResolver = {
   Query: {
-    getUser: async (_: any, __: any, { req }: RequestContext) => {
+    getUser: async (_: any, __: any, { req, session }: RequestContext) => {
+      console.log(session);
       const authorization = req.headers.authorization;
       // const
       if (!authorization) {
@@ -39,41 +40,37 @@ export const userResolver = {
     login: async (
       _: any,
       { userInput }: { userInput: LoginInput },
-      { req, pubsub }: RequestContext
+      { req, session }: RequestContext
     ) => {
+      console.log(session);
       await loginInputSchema.validate(userInput);
-
       const user = await prisma.user.findFirst({
         where: {
           email: userInput.email,
           status: UserStatus.ACTIVE,
         },
       });
-
       if (!user) {
         throw new Error("Invalid tax id or password!");
       }
-
       const isValidPassword = await bcrypt.compare(
         userInput.password,
         user.password
       );
-
       if (!isValidPassword) {
         throw new Error("Invalid tax id or password!");
       }
-
       const token = generateToken(user.email, user.id);
-      if (!req.session.user) {
-        req.session.user = {
+      if (!session.user) {
+        session.user = {
           firstName: user.firstname,
           email: user.email,
           tax_id: user.tax_id,
           id: user.id,
         };
       }
-      console.log(pubsub);
-      pubsub.publish("USER_LOGGED", { userLoggedIn: "LOGGED IN USER" });
+      // console.log(pubsub);
+      // await pubsub.publish("USER_LOGGED", { userLoggedIn: "LOGGED IN USER" });
       return {
         id: user.id,
         firstname: user.firstname,
@@ -138,13 +135,13 @@ export const userResolver = {
       });
 
       const token = generateToken(user.email, user.id);
-      if (!req.session.user) {
-        req.session.user = {
-          email: user.email,
-          tax_id: user.tax_id,
-          id: user.id,
-        };
-      }
+      // if (!req.session.user) {
+      //   req.session.user = {
+      //     email: user.email,
+      //     tax_id: user.tax_id,
+      //     id: user.id,
+      //   };
+      // }
       return {
         ...user,
         token,
@@ -183,14 +180,10 @@ export const userResolver = {
     },
   },
   Subscription: {
-    userLoggedIn: {
-      resolve: (payload: any) => {
-        console.log({ payload });
-        return payload;
-      },
-      subscribe: (_: any, __: any, { pubsub }: { pubsub: PubSub }) => {
-        return pubsub.asyncIterator(["USER_LOGGED"]);
-      },
+    greetings: async function* sayHiIn5Languages() {
+      for (const hi of ["Hi", "Bonjour", "Hola", "Ciao", "Zdravo"]) {
+        yield { greetings: hi };
+      }
     },
   },
   User: {
