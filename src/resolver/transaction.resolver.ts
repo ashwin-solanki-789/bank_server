@@ -75,17 +75,11 @@ export const transactionResolver = {
             account_number: transaction_details.sender,
             userId: user.id,
           },
-          include: {
-            User: true,
-          },
         });
 
         const receiver_account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.receiver,
-          },
-          include: {
-            User: true,
           },
         });
 
@@ -97,34 +91,32 @@ export const transactionResolver = {
           throw new Error("Insufficient funds!");
         }
 
-        prisma.$transaction(async (prisma) => {
-          prisma.account.update({
-            where: {
-              account_number: transaction_details.sender,
-            },
-            data: {
-              balance: account_details.balance - transaction_details.amount,
-            },
-          });
+        await prisma.account.update({
+          where: {
+            account_number: transaction_details.sender,
+          },
+          data: {
+            balance: account_details.balance - transaction_details.amount,
+          },
+        });
 
-          transaction = await prisma.transaction.create({
-            data: {
-              sender: {
-                connect: {
-                  account_number: transaction_details.sender,
-                },
+        transaction = await prisma.transaction.create({
+          data: {
+            sender: {
+              connect: {
+                account_number: transaction_details.sender,
               },
-              receiver: {
-                connect: {
-                  account_number: transaction_details.receiver,
-                },
-              },
-              status: TransactionStatus.COMPLETED,
-              amount: transaction_details.amount,
-              description: transaction_details.description,
-              type: transaction_details.type,
             },
-          });
+            receiver: {
+              connect: {
+                account_number: transaction_details.receiver,
+              },
+            },
+            status: TransactionStatus.COMPLETED,
+            amount: transaction_details.amount,
+            description: transaction_details.description,
+            type: transaction_details.type,
+          },
         });
       } else {
         // Requesting money from another account logic
@@ -133,17 +125,11 @@ export const transactionResolver = {
             account_number: transaction_details.receiver,
             userId: user.id,
           },
-          include: {
-            User: true,
-          },
         });
 
         const sender_account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.sender,
-          },
-          include: {
-            User: true,
           },
         });
 
@@ -192,14 +178,16 @@ export const transactionResolver = {
         },
       });
 
-      const transaction = await prisma.transaction.findFirst({
-        where: {
-          id: transaction_id,
-          type: TransactionType.REQUEST,
-        },
-      });
       let updatedTransaction;
+
       if (status === TransactionStatus.COMPLETED) {
+        const transaction = await prisma.transaction.findFirst({
+          where: {
+            id: transaction_id,
+            type: TransactionType.REQUEST,
+          },
+        });
+
         if (!transaction || !account) {
           throw new Error("Unable to find transaction or user account.");
         }
@@ -228,6 +216,17 @@ export const transactionResolver = {
           });
         });
       } else {
+        const transaction = await prisma.transaction.findFirst({
+          where: {
+            id: transaction_id,
+            type: TransactionType.NORMAL,
+          },
+        });
+
+        if (!transaction || !account) {
+          throw new Error("Unable to find transaction or user account.");
+        }
+
         updatedTransaction = prisma.transaction.update({
           where: {
             id: transaction_id,
