@@ -8,6 +8,8 @@ import generate_account_number from "../utils/generate_account_number";
 import { AccountStatus, UserStatus } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
 
+const pubsub = new PubSub();
+
 export const userResolver = {
   Query: {
     getUser: async (_: any, __: any, { req, session }: RequestContext) => {
@@ -70,7 +72,9 @@ export const userResolver = {
         };
       }
       // console.log(pubsub);
-      // await pubsub.publish("USER_LOGGED", { userLoggedIn: "LOGGED IN USER" });
+      pubsub.publish("USER_LOGGED", {
+        greetings: `LOGGED IN USER - ${user.email}`,
+      });
       return {
         id: user.id,
         firstname: user.firstname,
@@ -180,10 +184,13 @@ export const userResolver = {
     },
   },
   Subscription: {
-    greetings: async function* sayHiIn5Languages() {
-      for (const hi of ["Hi", "Bonjour", "Hola", "Ciao", "Zdravo"]) {
-        yield { greetings: hi };
-      }
+    greetings: {
+      subscribe: () => {
+        return pubsub.asyncIterator("USER_LOGGED");
+      },
+      resolve: ({ greetings }: { greetings: any }) => {
+        return greetings;
+      },
     },
   },
   User: {

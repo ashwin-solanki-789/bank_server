@@ -1,6 +1,3 @@
-import ws from "ws";
-import { PubSub } from "graphql-subscriptions";
-import { useServer } from "graphql-ws/lib/use/ws";
 import { createServer } from "http";
 import Koa from "koa";
 import Router from "koa-router";
@@ -12,12 +9,13 @@ import { schema } from "./schema";
 import { resolvers } from "./resolver";
 import session from "koa-session";
 import cors from "@koa/cors";
+import { execute, subscribe } from "graphql";
+import { SubscriptionServer } from "subscriptions-transport-ws";
 
 const app = new Koa();
 const router = new Router();
 
 const port = process.env.PORT || 4000;
-const pubsub = new PubSub();
 
 app.keys = [process.env.COOKIE_SECRET as string];
 
@@ -61,7 +59,7 @@ router.all(
 router.all("/graphql", async (ctx, next) => {
   const handler = createHandler({
     schema: executableSchema,
-    context: { req: ctx.req, session: ctx.session, pubsub },
+    context: { req: ctx.req, session: ctx.session },
   });
   return handler(ctx, next);
 });
@@ -70,12 +68,17 @@ app.use(router.routes()).use(router.allowedMethods());
 
 (async () => {
   const server = createServer(app.callback());
-  const wsServer = new ws.Server({
-    server,
-    path: "/graphql",
-  });
-
-  useServer({ schema: executableSchema }, wsServer);
+  new SubscriptionServer(
+    {
+      execute,
+      subscribe,
+      schema: executableSchema,
+    },
+    {
+      server,
+      path: "/graphql",
+    }
+  );
 
   server.listen(port, () => {
     console.log(`🚀 Server is running on port http://localhost:${port}/`);
