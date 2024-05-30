@@ -16,13 +16,15 @@ export const transactionResolver = {
       { req }: RequestContext
     ) => {
       const authorization = req.headers.authorization;
-
-      if (!authorization) {
-        throw new Error("Unauthorized User!");
-      }
-      const token = authorization.split(" ")[1];
+      // const
+      const token = authorization?.split(" ")[1];
 
       const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
 
       const account_exist = await prisma.account.findFirst({
         where: {
@@ -60,12 +62,14 @@ export const transactionResolver = {
     ) => {
       const authorization = req.headers.authorization;
       // const
-      if (!authorization) {
-        throw new Error("Unauthorized User!");
-      }
-      const token = authorization.split(" ")[1];
+      const token = authorization?.split(" ")[1];
 
       const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
 
       let transaction;
       if (transaction_details.type === TransactionType.NORMAL) {
@@ -165,12 +169,14 @@ export const transactionResolver = {
     ) => {
       const authorization = req.headers.authorization;
       // const
-      if (!authorization) {
-        throw new Error("Unauthorized User!");
-      }
-      const token = authorization.split(" ")[1];
+      const token = authorization?.split(" ")[1];
 
       const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
 
       const account = await prisma.account.findFirst({
         where: {

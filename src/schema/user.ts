@@ -1,4 +1,9 @@
 export const userTypeDefs = /* GraphQL */ `
+  type Error {
+    status_code: Int!
+    message: String!
+  }
+
   type User {
     id: ID!
     firstname: String!
@@ -9,6 +14,8 @@ export const userTypeDefs = /* GraphQL */ `
     accounts: [Account]
     createdAt: String
   }
+
+  union UserResult = User | Error
 
   type PublicUser {
     id: ID!
@@ -21,7 +28,7 @@ export const userTypeDefs = /* GraphQL */ `
   }
 
   type Query {
-    getUser: User!
+    getUser: UserResult
   }
 
   type Mutation {

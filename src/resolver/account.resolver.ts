@@ -4,6 +4,7 @@ import prisma from "../PrismaClient";
 import generate_account_number from "../utils/generate_account_number";
 import { RequestContext } from "../interfaces";
 import { AccountStatus } from "@prisma/client";
+// import { ErrorStatusCode } from "../ErrorConst";
 
 export const accountResolver = {
   Query: {
@@ -12,16 +13,15 @@ export const accountResolver = {
       { account_number }: { account_number: number },
       { req, session }: RequestContext
     ) => {
-      var user: UserObj;
-      if (session.user) {
-        const bearer = req.headers.authorization;
-        if (!bearer) {
-          throw new Error("Unauthorized User!");
-        }
-        const token = bearer.split(" ")[1] as string;
-        user = decodeToken(token);
-      } else {
-        user = session.user;
+      console.log(session);
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
       }
 
       const account = await prisma.account.findFirst({
@@ -45,16 +45,16 @@ export const accountResolver = {
       __: any,
       { req, session }: RequestContext
     ) => {
-      var user: UserObj;
-      if (session.user) {
-        const bearer = req.headers.authorization;
-        if (!bearer) {
-          throw new Error("Unauthorized User!");
-        }
-        const token = bearer.split(" ")[1] as string;
-        user = decodeToken(token);
-      } else {
-        user = session.user;
+      console.log(session);
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
       }
 
       const acc_number = generate_account_number();

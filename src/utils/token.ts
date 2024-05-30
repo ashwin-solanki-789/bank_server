@@ -18,14 +18,21 @@ export function generateToken(email: string, id: string): string {
   return token;
 }
 
-export function decodeToken(token: string): UserObj {
-  const user = jwt.verify(
-    token,
-    process.env.JWT_SECRET_TOKEN as string
-  ) as JwtPayload & jwtDateObj;
-
-  if (Date.now() >= user.iat * 1000 && Date.now() <= user.exp * 1000) {
-    return user;
+export function decodeToken(token: string | undefined): UserObj | null {
+  if (!token) {
+    return null;
   }
-  throw new Error("Unauthorise User!");
+  try {
+    const user = jwt.verify(
+      token,
+      process.env.JWT_SECRET_TOKEN as string
+    ) as JwtPayload & jwtDateObj;
+
+    if (Date.now() >= user.iat * 1000 && Date.now() <= user.exp * 1000) {
+      return user;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
 }

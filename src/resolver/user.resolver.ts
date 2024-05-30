@@ -7,21 +7,21 @@ import { loginInputSchema, registerInputSchema } from "../validation";
 import generate_account_number from "../utils/generate_account_number";
 import { AccountStatus, UserStatus } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
+import { ErrorStatusCode } from "../ErrorConst";
 
 const pubsub = new PubSub();
 
 export const userResolver = {
   Query: {
     getUser: async (_: any, __: any, { req, session }: RequestContext) => {
-      console.log(session);
       const authorization = req.headers.authorization;
       // const
-      if (!authorization) {
-        throw new Error("Unauthorized User!");
-      }
-      const token = authorization.split(" ")[1];
+      const token = authorization?.split(" ")[1];
 
       const user = decodeToken(token);
+      if (!user) {
+        return ErrorStatusCode[601];
+      }
 
       const isValidUser = await prisma.user.findFirst({
         where: {
@@ -32,10 +32,10 @@ export const userResolver = {
       });
 
       if (!user || !isValidUser) {
-        throw new Error("Unauthorized User!");
+        return ErrorStatusCode[650];
       }
 
-      return isValidUser;
+      return { __typename: "User", ...isValidUser };
     },
   },
   Mutation: {
@@ -154,12 +154,13 @@ export const userResolver = {
     deleteUser: async (_: any, __: any, { req }: { req: Request }) => {
       const authorization = req.headers.authorization;
       // const
-      if (!authorization) {
-        throw new Error("Unauthorized User!");
-      }
-      const token = authorization.split(" ")[1];
+      const token = authorization?.split(" ")[1];
 
       const user = decodeToken(token);
+
+      if (!user) {
+        return ErrorStatusCode[601];
+      }
 
       await prisma.$transaction(async (prisma) => {
         await prisma.account.updateMany({
