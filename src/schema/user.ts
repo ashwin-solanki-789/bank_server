@@ -51,6 +51,6 @@ export const userTypeDefs = /* GraphQL */ `
   }
 
   type Subscription {
-    greetings: String
+    greetings(email: String!): String
   }
 `;

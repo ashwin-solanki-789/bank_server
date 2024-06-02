@@ -7,6 +7,8 @@ import {
   UpdateTransaction,
 } from "../interfaces/transaction.interface";
 import { decodeToken } from "../utils/token";
+import { isDataView } from "util/types";
+import { ErrorStatusCode } from "../ErrorConst";
 
 export const transactionResolver = {
   Query: {
@@ -53,6 +55,48 @@ export const transactionResolver = {
 
       return transactions;
     },
+    transactionStats: async (
+      _: unknown,
+      { account_id }: { account_id: number },
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        const error = new Error(ErrorStatusCode[650].message);
+        throw error;
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
+
+      const sent = await prisma.transaction.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          senderId: account_id,
+          status: TransactionStatus.COMPLETED,
+        },
+      });
+
+      const received = await prisma.transaction.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          receiverId: account_id,
+          status: TransactionStatus.COMPLETED,
+        },
+      });
+
+      return {
+        total_send: sent._sum.amount || 0,
+        total_received: received._sum.amount || 0,
+      };
+    },
   },
   Mutation: {
     createTransaction: async (
@@ -87,7 +131,11 @@ export const transactionResolver = {
           },
         });
 
-        if (!account_details || !receiver_account_details) {
+        if (
+          !account_details ||
+          !receiver_account_details ||
+          transaction_details.sender === transaction_details.receiver
+        ) {
           throw new Error("Invalid Details");
         }
 
@@ -137,7 +185,11 @@ export const transactionResolver = {
           },
         });
 
-        if (!account_details || !sender_account_details) {
+        if (
+          !account_details ||
+          !sender_account_details ||
+          transaction_details.sender === transaction_details.receiver
+        ) {
           throw new Error("Invalid details!");
         }
 
@@ -248,7 +300,7 @@ export const transactionResolver = {
   },
   Transaction: {
     sender: async (parent: any) => {
-      return prisma.account.findFirst({
+      const senderAccount = await prisma.account.findFirst({
         where: {
           account_number: parent.senderId,
         },
@@ -256,9 +308,24 @@ export const transactionResolver = {
           User: true,
         },
       });
+
+      if (senderAccount) {
+        return {
+          ...senderAccount,
+          id: `Account_${senderAccount.id}`,
+          __typename: "PublicAccount",
+          User: {
+            ...senderAccount.User,
+            id: `PublicUser_${senderAccount?.User?.id}`,
+            __typename: "PublicUser",
+          },
+        };
+      }
+
+      return null;
     },
     receiver: async (parent: any) => {
-      return prisma.account.findFirst({
+      const receiverAccount = await prisma.account.findFirst({
         where: {
           account_number: parent.receiverId,
         },
@@ -266,6 +333,21 @@ export const transactionResolver = {
           User: true,
         },
       });
+
+      if (receiverAccount) {
+        return {
+          ...receiverAccount,
+          id: `Account_${receiverAccount.id}`,
+          __typename: "PublicAccount",
+          User: {
+            ...receiverAccount.User,
+            id: `PublicUser_${receiverAccount?.User?.id}`,
+            __typename: "PublicUser",
+          },
+        };
+      }
+
+      return null;
     },
   },
 };

@@ -6,7 +6,7 @@ import bcrypt from "bcrypt";
 import { loginInputSchema, registerInputSchema } from "../validation";
 import generate_account_number from "../utils/generate_account_number";
 import { AccountStatus, UserStatus } from "@prisma/client";
-import { PubSub } from "graphql-subscriptions";
+import { PubSub, withFilter } from "graphql-subscriptions";
 import { ErrorStatusCode } from "../ErrorConst";
 
 const pubsub = new PubSub();
@@ -53,14 +53,15 @@ export const userResolver = {
         },
       });
       if (!user) {
-        throw new Error("Invalid tax id or password!");
+        const error = new Error(ErrorStatusCode[602].message);
+        throw error;
       }
       const isValidPassword = await bcrypt.compare(
         userInput.password,
         user.password
       );
       if (!isValidPassword) {
-        throw new Error("Invalid tax id or password!");
+        return ErrorStatusCode[602];
       }
       const token = generateToken(user.email, user.id);
       if (!session.user) {
@@ -71,9 +72,9 @@ export const userResolver = {
           id: user.id,
         };
       }
-      // console.log(pubsub);
       pubsub.publish("USER_LOGGED", {
         greetings: `LOGGED IN USER - ${user.email}`,
+        email: user.email,
       });
       return {
         id: user.id,
@@ -94,12 +95,19 @@ export const userResolver = {
       await registerInputSchema.validate(registerInput);
       const tax_exists = await prisma.user.findFirst({
         where: {
-          tax_id: registerInput.tax_id,
+          OR: [
+            {
+              tax_id: registerInput.tax_id,
+            },
+            {
+              email: registerInput.email,
+            },
+          ],
         },
       });
 
       if (tax_exists) {
-        throw new Error("User with tax id already exists");
+        return ErrorStatusCode[603];
       }
 
       const saltRound = parseInt(process.env.HASH_SALT as string);
@@ -186,12 +194,15 @@ export const userResolver = {
   },
   Subscription: {
     greetings: {
-      subscribe: () => {
-        return pubsub.asyncIterator("USER_LOGGED");
-      },
-      resolve: ({ greetings }: { greetings: any }) => {
-        return greetings;
-      },
+      subscribe: withFilter(
+        () => pubsub.asyncIterator("USER_LOGGED"),
+        (payload: any, variables: any) => {
+          // if (payload.email === variables.email) {
+          //   return payload.greetings;
+          // }
+          return payload.email === variables.email;
+        }
+      ),
     },
   },
   User: {

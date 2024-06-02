@@ -23,5 +23,6 @@ export const AccountTypeDefs = /* GraphQL */ `
   type Mutation {
     createAnotherAccount: Account!
     deleteAccount(account_number: Int!): Boolean!
+    verifyAccount(account_number: Int!): Boolean!
   }
 `;

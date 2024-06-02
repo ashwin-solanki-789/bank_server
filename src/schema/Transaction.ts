@@ -25,11 +25,17 @@ export const TransactionTypeDefs = /* GraphQL */ `
     updatedAt: String
   }
 
+  type TransactionsStats {
+    total_send: Float
+    total_received: Float
+  }
+
   type Query {
     getAllTransaction(
       account_id: Int!
       status: TransactionStatus
     ): [Transaction]
+    transactionStats(account_id: Int!): TransactionsStats
   }
 
   type Mutation {

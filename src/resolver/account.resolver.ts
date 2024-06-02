@@ -3,7 +3,8 @@ import { decodeToken } from "../utils/token";
 import prisma from "../PrismaClient";
 import generate_account_number from "../utils/generate_account_number";
 import { RequestContext } from "../interfaces";
-import { AccountStatus } from "@prisma/client";
+import { Account, AccountStatus } from "@prisma/client";
+import { ErrorStatusCode } from "../ErrorConst";
 // import { ErrorStatusCode } from "../ErrorConst";
 
 export const accountResolver = {
@@ -13,7 +14,6 @@ export const accountResolver = {
       { account_number }: { account_number: number },
       { req, session }: RequestContext
     ) => {
-      console.log(session);
       const authorization = req.headers.authorization;
       // const
       const token = authorization?.split(" ")[1];
@@ -76,5 +76,36 @@ export const accountResolver = {
       { account_number }: { account_number: Number },
       { req }: { req: Request }
     ) => {},
+    verifyAccount: async (
+      _: unknown,
+      { account_number }: { account_number: number },
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error(ErrorStatusCode[650].message);
+      }
+
+      const account = await prisma.account.findFirst({
+        where: {
+          account_number: account_number,
+          status: AccountStatus.ACTIVE,
+          userId: {
+            not: user.id,
+          },
+        },
+      });
+
+      if (!account) {
+        return false;
+      }
+
+      return true;
+    },
   },
 };
