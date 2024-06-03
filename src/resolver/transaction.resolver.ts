@@ -5,6 +5,7 @@ import {
   GetTransactionInput,
   TransactionInput,
   UpdateTransaction,
+  paginationInterface,
 } from "../interfaces/transaction.interface";
 import { decodeToken } from "../utils/token";
 import { isDataView } from "util/types";
@@ -14,7 +15,7 @@ export const transactionResolver = {
   Query: {
     getAllTransaction: async (
       _: any,
-      { account_id, status }: GetTransactionInput,
+      { account_id, status, length }: GetTransactionInput,
       { req }: RequestContext
     ) => {
       const authorization = req.headers.authorization;
@@ -51,6 +52,10 @@ export const transactionResolver = {
           ],
           status: status,
         },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: length ? length : undefined,
       });
 
       return transactions;
@@ -143,32 +148,44 @@ export const transactionResolver = {
           throw new Error("Insufficient funds!");
         }
 
-        await prisma.account.update({
-          where: {
-            account_number: transaction_details.sender,
-          },
-          data: {
-            balance: account_details.balance - transaction_details.amount,
-          },
-        });
+        prisma.$transaction(async () => {
+          await prisma.account.update({
+            where: {
+              account_number: transaction_details.sender,
+            },
+            data: {
+              balance: account_details.balance - transaction_details.amount,
+            },
+          });
 
-        transaction = await prisma.transaction.create({
-          data: {
-            sender: {
-              connect: {
-                account_number: transaction_details.sender,
-              },
+          await prisma.account.update({
+            where: {
+              account_number: transaction_details.receiver,
             },
-            receiver: {
-              connect: {
-                account_number: transaction_details.receiver,
-              },
+            data: {
+              balance:
+                receiver_account_details.balance + transaction_details.amount,
             },
-            status: TransactionStatus.COMPLETED,
-            amount: transaction_details.amount,
-            description: transaction_details.description,
-            type: transaction_details.type,
-          },
+          });
+
+          transaction = await prisma.transaction.create({
+            data: {
+              sender: {
+                connect: {
+                  account_number: transaction_details.sender,
+                },
+              },
+              receiver: {
+                connect: {
+                  account_number: transaction_details.receiver,
+                },
+              },
+              status: TransactionStatus.COMPLETED,
+              amount: transaction_details.amount,
+              description: transaction_details.description,
+              type: transaction_details.type,
+            },
+          });
         });
       } else {
         // Requesting money from another account logic
@@ -226,13 +243,14 @@ export const transactionResolver = {
       const user = decodeToken(token);
 
       if (!user) {
-        throw new Error("Unauthorise user");
+        throw new Error(ErrorStatusCode[650].message);
         // return { __typename: "Error", ...ErrorStatusCode[601] };
       }
 
       const account = await prisma.account.findFirst({
         where: {
           userId: user.id,
+          status: "ACTIVE",
         },
       });
 
@@ -243,11 +261,23 @@ export const transactionResolver = {
           where: {
             id: transaction_id,
             type: TransactionType.REQUEST,
+            status: TransactionStatus.PENDING,
           },
         });
 
         if (!transaction || !account) {
           throw new Error("Unable to find transaction or user account.");
+        }
+
+        const recevier_account = await prisma.account.findFirst({
+          where: {
+            account_number: transaction.receiverId,
+            status: "ACTIVE",
+          },
+        });
+
+        if (!recevier_account) {
+          throw new Error("Failed to perform action.");
         }
 
         if (account.balance - transaction.amount < 0) {
@@ -261,6 +291,15 @@ export const transactionResolver = {
             },
             data: {
               balance: account.balance - transaction.amount,
+            },
+          });
+
+          await prisma.account.update({
+            where: {
+              account_number: recevier_account.account_number,
+            },
+            data: {
+              balance: recevier_account.balance + transaction.amount,
             },
           });
 
@@ -296,6 +335,78 @@ export const transactionResolver = {
       }
 
       return updatedTransaction;
+    },
+    paginationTransaction: async (
+      _: unknown,
+      { account_id, length, page_number }: paginationInterface,
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error(ErrorStatusCode[650].message);
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
+
+      const account_exisit = await prisma.account.findFirst({
+        where: {
+          account_number: account_id,
+          userId: user.id,
+        },
+      });
+
+      if (!account_exisit) {
+        throw new Error("Account dosenot exisit.");
+      }
+
+      const totalCount = await prisma.transaction.count({
+        where: {
+          OR: [
+            {
+              senderId: account_id,
+            },
+            {
+              receiverId: account_id,
+            },
+          ],
+        },
+      });
+      let page_length;
+      let offset;
+      if (length && page_number) {
+        page_length = length;
+        offset = length * (page_number - 1);
+      } else {
+        offset = 0;
+      }
+
+      const transaction = await prisma.transaction.findMany({
+        where: {
+          OR: [
+            {
+              senderId: account_id,
+            },
+            {
+              receiverId: account_id,
+            },
+          ],
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: page_length,
+        skip: offset,
+      });
+
+      return {
+        total: totalCount,
+        page_number: length ? page_number : 1,
+        Transactions: transaction,
+      };
     },
   },
   Transaction: {

@@ -3,6 +3,7 @@ import { TransactionStatus, TransactionType } from "@prisma/client";
 export interface GetTransactionInput {
   account_id: number;
   status: TransactionStatus;
+  length: number;
 }
 
 export interface TransactionInput {
@@ -13,6 +14,12 @@ export interface TransactionInput {
     type: TransactionType;
     description: string;
   };
+}
+
+export interface paginationInterface {
+  account_id: number;
+  length: number;
+  page_number: number;
 }
 
 export interface UpdateTransaction {

@@ -34,8 +34,15 @@ export const TransactionTypeDefs = /* GraphQL */ `
     getAllTransaction(
       account_id: Int!
       status: TransactionStatus
+      length: Int
     ): [Transaction]
     transactionStats(account_id: Int!): TransactionsStats
+  }
+
+  type PaginationData {
+    total: Int
+    page_number: Int
+    Transactions: [Transaction]
   }
 
   type Mutation {
@@ -44,6 +51,11 @@ export const TransactionTypeDefs = /* GraphQL */ `
       transaction_id: ID!
       status: TransactionStatus!
     ): Transaction!
+    paginationTransaction(
+      account_id: Int!
+      length: Int
+      page_number: Int
+    ): PaginationData
     deleteTransaction(id: ID!): Transaction!
   }
 
