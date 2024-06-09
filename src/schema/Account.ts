@@ -25,4 +25,8 @@ export const AccountTypeDefs = /* GraphQL */ `
     deleteAccount(account_number: Int!): Boolean!
     verifyAccount(account_number: Int!): Boolean!
   }
+
+  # type Subscription {
+  #   verify(account_number: Int!): Boolean!
+  # }
 `;

@@ -1,8 +1,13 @@
-import { TransactionStatus, TransactionType } from "@prisma/client";
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from "@prisma/client";
 import prisma from "../PrismaClient";
 import { RequestContext } from "../interfaces";
 import {
   GetTransactionInput,
+  SubscriptionTransactionInterface,
   TransactionInput,
   UpdateTransaction,
   paginationInterface,
@@ -10,6 +15,9 @@ import {
 import { decodeToken } from "../utils/token";
 import { isDataView } from "util/types";
 import { ErrorStatusCode } from "../ErrorConst";
+import { PubSub, withFilter } from "graphql-subscriptions";
+
+const pubsub = new PubSub();
 
 export const transactionResolver = {
   Query: {
@@ -121,6 +129,7 @@ export const transactionResolver = {
       }
 
       let transaction;
+      let account_number;
       if (transaction_details.type === TransactionType.NORMAL) {
         // Normal Sending money logic
         const account_details = await prisma.account.findFirst({
@@ -128,12 +137,15 @@ export const transactionResolver = {
             account_number: transaction_details.sender,
             userId: user.id,
           },
+          include: { User: true },
         });
+        account_number = transaction_details.receiver;
 
         const receiver_account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.receiver,
           },
+          include: { User: true },
         });
 
         if (
@@ -186,6 +198,14 @@ export const transactionResolver = {
               type: transaction_details.type,
             },
           });
+          pubsub.publish("TRANSACTION_SUB", {
+            transactionSub: {
+              ...transaction,
+              sender: account_details,
+              receiver: receiver_account_details,
+            },
+            account_number: transaction.receiverId,
+          });
         });
       } else {
         // Requesting money from another account logic
@@ -194,12 +214,15 @@ export const transactionResolver = {
             account_number: transaction_details.receiver,
             userId: user.id,
           },
+          include: { User: true },
         });
+        account_number = transaction_details.sender;
 
         const sender_account_details = await prisma.account.findFirst({
           where: {
             account_number: transaction_details.sender,
           },
+          include: { User: true },
         });
 
         if (
@@ -228,7 +251,17 @@ export const transactionResolver = {
             type: transaction_details.type,
           },
         });
+
+        pubsub.publish("TRANSACTION_SUB", {
+          transactionSub: {
+            ...transaction,
+            sender: sender_account_details,
+            receiver: account_details,
+          },
+          account_number: transaction.senderId,
+        });
       }
+
       return transaction;
     },
     updateTransaction: async (
@@ -252,6 +285,7 @@ export const transactionResolver = {
           userId: user.id,
           status: "ACTIVE",
         },
+        include: { User: true },
       });
 
       let updatedTransaction;
@@ -260,11 +294,10 @@ export const transactionResolver = {
         const transaction = await prisma.transaction.findFirst({
           where: {
             id: transaction_id,
-            type: TransactionType.REQUEST,
-            status: TransactionStatus.PENDING,
+            type: "REQUEST",
+            status: "PENDING",
           },
         });
-
         if (!transaction || !account) {
           throw new Error("Unable to find transaction or user account.");
         }
@@ -274,6 +307,7 @@ export const transactionResolver = {
             account_number: transaction.receiverId,
             status: "ACTIVE",
           },
+          include: { User: true },
         });
 
         if (!recevier_account) {
@@ -311,12 +345,22 @@ export const transactionResolver = {
               status: status,
             },
           });
+
+          pubsub.publish("TRANSACTION_SUB", {
+            transactionSub: {
+              ...updatedTransaction,
+            },
+            account_number:
+              transaction.senderId === account.account_number
+                ? transaction.receiverId
+                : transaction.senderId,
+          });
         });
       } else {
         const transaction = await prisma.transaction.findFirst({
           where: {
             id: transaction_id,
-            type: TransactionType.NORMAL,
+            status: "PENDING",
           },
         });
 
@@ -331,6 +375,15 @@ export const transactionResolver = {
           data: {
             status: status,
           },
+        });
+        pubsub.publish("TRANSACTION_SUB", {
+          transactionSub: {
+            ...updatedTransaction,
+          },
+          account_number:
+            transaction.senderId === account.account_number
+              ? transaction.receiverId
+              : transaction.senderId,
         });
       }
 
@@ -459,6 +512,19 @@ export const transactionResolver = {
       }
 
       return null;
+    },
+  },
+  Subscription: {
+    transactionSub: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator("TRANSACTION_SUB"),
+        (
+          payload: SubscriptionTransactionInterface,
+          { account_number }: { account_number: number }
+        ) => {
+          return payload.account_number === account_number;
+        }
+      ),
     },
   },
 };

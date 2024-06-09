@@ -66,4 +66,8 @@ export const TransactionTypeDefs = /* GraphQL */ `
     type: TransactionType!
     description: String
   }
+
+  type Subscription {
+    transactionSub(account_number: Int!): Transaction
+  }
 `;

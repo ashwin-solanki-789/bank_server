@@ -1,4 +1,9 @@
-import { TransactionStatus, TransactionType } from "@prisma/client";
+import {
+  Account,
+  TransactionStatus,
+  TransactionType,
+  User,
+} from "@prisma/client";
 
 export interface GetTransactionInput {
   account_id: number;
@@ -14,6 +19,23 @@ export interface TransactionInput {
     type: TransactionType;
     description: string;
   };
+}
+
+export interface TransactionOutput {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  sender: Account & User;
+  receiver: Account & User;
+  type: TransactionType;
+  status: TransactionStatus;
+  amount: number;
+  description: string;
+}
+
+export interface SubscriptionTransactionInterface {
+  account_number: number;
+  transaction: TransactionOutput;
 }
 
 export interface paginationInterface {

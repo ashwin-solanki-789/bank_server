@@ -1,5 +1,10 @@
 import { Request } from "express";
-import { RegisterInput, LoginInput, RequestContext } from "../interfaces";
+import {
+  RegisterInput,
+  LoginInput,
+  RequestContext,
+  UpdateInputInterface,
+} from "../interfaces";
 import prisma from "../PrismaClient";
 import { generateToken, decodeToken } from "../utils/token";
 import bcrypt from "bcrypt";
@@ -158,6 +163,46 @@ export const userResolver = {
         ...user,
         token,
       };
+    },
+    updateUser: async (
+      _: unknown,
+      { updateInput }: { updateInput: UpdateInputInterface },
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error(ErrorStatusCode[650].message);
+      }
+
+      const isEmailExist = await prisma.user.findFirst({
+        where: {
+          id: {
+            not: user.id,
+          },
+          email: updateInput.email,
+        },
+      });
+      if (isEmailExist) {
+        throw new Error(ErrorStatusCode[651].message);
+      }
+
+      const updateUser = await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          firstname: updateInput.firstname,
+          lastname: updateInput.lastname,
+          email: updateInput.email,
+        },
+      });
+
+      return updateUser;
     },
     deleteUser: async (_: any, __: any, { req }: { req: Request }) => {
       const authorization = req.headers.authorization;

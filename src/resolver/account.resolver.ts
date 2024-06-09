@@ -3,9 +3,12 @@ import { decodeToken } from "../utils/token";
 import prisma from "../PrismaClient";
 import generate_account_number from "../utils/generate_account_number";
 import { RequestContext } from "../interfaces";
-import { Account, AccountStatus } from "@prisma/client";
+import { AccountStatus } from "@prisma/client";
 import { ErrorStatusCode } from "../ErrorConst";
-// import { ErrorStatusCode } from "../ErrorConst";
+
+import { PubSub, withFilter } from "graphql-subscriptions";
+
+const pubsub = new PubSub();
 
 export const accountResolver = {
   Query: {
@@ -105,7 +108,22 @@ export const accountResolver = {
         return false;
       }
 
+      pubsub.publish("VERIFY", {
+        verify: true,
+        account_number: account.account_number,
+      });
+
       return true;
     },
   },
+  // Subscription: {
+  //   verify: {
+  //     subscribe: withFilter(
+  //       () => pubsub.asyncIterator("VERIFY"),
+  //       (payload, { account_number }: { account_number: number }) => {
+  //         return payload.account_number === account_number;
+  //       }
+  //     ),
+  //   },
+  // },
 };

@@ -34,7 +34,14 @@ export const userTypeDefs = /* GraphQL */ `
   type Mutation {
     login(userInput: LoginInput): PublicUser!
     register(registerInput: RegisterInput): PublicUser!
+    updateUser(updateInput: UpdateInput!): User!
     deleteUser: Boolean!
+  }
+
+  input UpdateInput {
+    firstname: String!
+    lastname: String!
+    email: String!
   }
 
   input RegisterInput {

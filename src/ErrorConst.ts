@@ -19,4 +19,9 @@ export const ErrorStatusCode = {
     status_code: 650,
     message: "Unauthorise User!",
   },
+  651: {
+    __typename: "Error",
+    status_code: 651,
+    message: "Email ID already exist",
+  },
 } as const;
