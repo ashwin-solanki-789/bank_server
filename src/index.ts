@@ -11,6 +11,9 @@ import session from "koa-session";
 import cors from "@koa/cors";
 import { execute, subscribe } from "graphql";
 import { SubscriptionServer } from "subscriptions-transport-ws";
+import send from "koa-send";
+import path from "path";
+import serve from "koa-static";
 
 const app = new Koa();
 const router = new Router();
@@ -24,7 +27,7 @@ const executableSchema = makeExecutableSchema({
   resolvers,
 });
 cors({
-  origin: "http://16.16.207.187",
+  origin: "*",
   credentials: true,
 });
 app.use(
@@ -40,7 +43,7 @@ app.use(
   )
 );
 
-router.get("/", (ctx) => {
+router.get("/server", (ctx) => {
   ctx.status = 200;
   ctx.body = `
     <h1>Welcome to the GraphQL Server</h1>
@@ -66,8 +69,12 @@ router.all("/graphql", async (ctx, next) => {
   });
   return handler(ctx, next);
 });
-
 app.use(router.routes()).use(router.allowedMethods());
+const staticPath = path.join(__dirname, "..", "dist");
+app.use(serve(staticPath));
+app.use(async (ctx) => {
+  await send(ctx, "index.html", { root: staticPath });
+});
 
 (async () => {
   const server = createServer(app.callback());
