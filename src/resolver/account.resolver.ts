@@ -41,6 +41,34 @@ export const accountResolver = {
       console.log(account);
       return account;
     },
+    getAllAccountBasedOnUserID: async (
+      _: unknown,
+      { user_id }: { user_id: string },
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error("Unauthorise user");
+      }
+
+      if (!user_id) {
+        throw new Error("User ID cannot be empty!");
+      }
+
+      const account = await prisma.account.findMany({
+        where: {
+          userId: user_id,
+          status: "ACTIVE",
+        },
+      });
+
+      return account;
+    },
   },
   Mutation: {
     createAnotherAccount: async (
