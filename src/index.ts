@@ -26,10 +26,12 @@ const executableSchema = makeExecutableSchema({
   typeDefs: schema,
   resolvers,
 });
-cors({
-  origin: "*",
-  credentials: true,
-});
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
 app.use(
   session(
     {
@@ -42,6 +44,14 @@ app.use(
     app
   )
 );
+
+app.use(async (ctx, next) => {
+  if (ctx.method === "OPTIONS") {
+    ctx.status = 204;
+  } else {
+    await next();
+  }
+});
 
 router.get("/server", (ctx) => {
   ctx.status = 200;
@@ -59,7 +69,10 @@ router.get("/status", (ctx) => {
 
 router.all(
   "/playground",
-  koaPlayground({ endpoint: "/graphql", subscriptionEndpoint: "/graphql" })
+  koaPlayground({
+    endpoint: "/graphql",
+    subscriptionEndpoint: "/graphql",
+  })
 );
 
 router.all("/graphql", async (ctx, next) => {
@@ -69,11 +82,19 @@ router.all("/graphql", async (ctx, next) => {
   });
   return handler(ctx, next);
 });
+
 app.use(router.routes()).use(router.allowedMethods());
+
 const staticPath = path.join(__dirname, "..", "dist");
 app.use(serve(staticPath));
 app.use(async (ctx) => {
-  await send(ctx, "index.html", { root: staticPath });
+  if (
+    ctx.method === "GET" &&
+    ctx.status === 404 &&
+    !ctx.path.startsWith("/graphql")
+  ) {
+    await send(ctx, "index.html", { root: staticPath });
+  }
 });
 
 (async () => {
