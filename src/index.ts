@@ -23,7 +23,10 @@ const executableSchema = makeExecutableSchema({
   typeDefs: schema,
   resolvers,
 });
-app.use(cors());
+cors({
+  origin: "http://16.16.207.187",
+  credentials: true,
+});
 app.use(
   session(
     {
