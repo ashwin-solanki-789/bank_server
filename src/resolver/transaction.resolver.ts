@@ -461,6 +461,63 @@ export const transactionResolver = {
         Transactions: transaction,
       };
     },
+    deleteTransaction: async (
+      _: unknown,
+      { id, account_id }: { id: string; account_id: number },
+      { req }: RequestContext
+    ) => {
+      const authorization = req.headers.authorization;
+      // const
+      const token = authorization?.split(" ")[1];
+
+      const user = decodeToken(token);
+
+      if (!user) {
+        throw new Error(ErrorStatusCode[650].message);
+        // return { __typename: "Error", ...ErrorStatusCode[601] };
+      }
+
+      const account = await prisma.account.findFirst({
+        where: {
+          account_number: account_id,
+          userId: user.id,
+          status: "ACTIVE",
+        },
+      });
+
+      if (!account) {
+        throw new Error(ErrorStatusCode[652].message);
+      }
+
+      const transaction = await prisma.transaction.findFirst({
+        where: {
+          id,
+          OR: [
+            {
+              senderId: account.account_number,
+            },
+            {
+              receiverId: account.account_number,
+            },
+          ],
+        },
+      });
+
+      if (!transaction) {
+        throw new Error("Transaction not found!");
+      }
+
+      const updatedTransaction = await prisma.transaction.update({
+        where: {
+          id: transaction.id,
+        },
+        data: {
+          status: TransactionStatus.DELETED,
+        },
+      });
+
+      return updatedTransaction;
+    },
   },
   Transaction: {
     sender: async (parent: any) => {

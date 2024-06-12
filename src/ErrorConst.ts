@@ -24,4 +24,9 @@ export const ErrorStatusCode = {
     status_code: 651,
     message: "Email ID already exist",
   },
+  652: {
+    __typename: "Error",
+    status_code: 652,
+    message: "Invalid Details!",
+  },
 } as const;

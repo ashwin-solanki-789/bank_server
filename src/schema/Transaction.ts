@@ -56,7 +56,7 @@ export const TransactionTypeDefs = /* GraphQL */ `
       length: Int
       page_number: Int
     ): PaginationData
-    deleteTransaction(id: ID!): Transaction!
+    deleteTransaction(id: ID!, account_id: Int!): Transaction!
   }
 
   input sendMoneyInput {
